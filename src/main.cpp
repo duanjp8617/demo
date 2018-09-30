@@ -155,6 +155,20 @@ public:
                 std::cout<<id<<", ";
             }
             std::cout<<std::endl;
+
+            for(auto& arr : _ingress_mac) {
+                for(auto v : arr) {
+                    std::cout << ((int)v) << ", ";
+                }
+                std::cout<<std::endl;
+            }
+
+            for(auto& arr : _egress_mac) {
+                for(auto v : arr) {
+                    std::cout << ((int)v) << ", ";
+                }
+                std::cout<<std::endl;
+            }
         }
 
         return succeed;

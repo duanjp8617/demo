@@ -37,21 +37,6 @@ static volatile bool force_quit;
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
-static const struct rte_eth_conf port_conf = {
-	.rxmode = {
-		.split_hdr_size = 0,
-		.header_split   = 0, /**< Header Split disabled */
-		.hw_ip_checksum = 0, /**< IP checksum offload disabled */
-		.hw_vlan_filter = 0, /**< VLAN filtering disabled */
-		.jumbo_frame    = 0, /**< Jumbo Frame Support disabled */
-		.hw_strip_crc   = 1, /**< CRC stripped by hardware */
-	},
-	.txmode = {
-		.mq_mode = ETH_MQ_TX_NONE,
-	},
-};
-
-
 static void
 signal_handler(int signum) {
     if (signum == SIGINT || signum == SIGTERM) {
@@ -242,6 +227,9 @@ private:
 };
 
 int main(int argc, char **argv) {
+	struct rte_eth_conf port_conf;
+
+
 
     /* init EAL */
     int ret = rte_eal_init(argc, argv);

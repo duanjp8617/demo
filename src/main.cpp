@@ -29,7 +29,12 @@
 #include <array>
 #include <cstdint>
 
+#define NB_MBUF   8192
+#define MEMPOOL_CACHE_SIZE 256
+
 static volatile bool force_quit;
+
+struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
 static void
 signal_handler(int signum) {
@@ -225,6 +230,12 @@ int main(int argc, char **argv) {
     if(succeed == false) {
         rte_exit(EXIT_FAILURE, "Invalid demo arguments\n");
     }
+
+	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
+		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
+		rte_socket_id());
+	if (l2fwd_pktmbuf_pool == NULL)
+		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
 }
 
 // Processs input arguments

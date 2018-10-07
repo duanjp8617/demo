@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
 		std::cout << "Finish creating packet memory buffer pool." <<std::endl;
 
 	int max_port_id = opt_parser.ingress_side_port_id();
-	std::set<int> port_id_holder();
+	std::set<int> port_id_holder;
 	port_id_holder.insert(max_port_id);
 	int count = opt_parser.egress_side_port_id_count();
 	for(int i=0; i<count; i++) {

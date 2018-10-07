@@ -48,7 +48,7 @@ static void
 check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
-#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+#define MAX_CHECK_TIME 50 /* 9s (90 * 100ms) in total */
 	uint16_t portid;
 	uint8_t count, print_flag = 0;
 	struct rte_eth_link link;
@@ -74,8 +74,10 @@ check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
 						portid, link.link_speed,
 				(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
 					("full-duplex") : ("half-duplex\n"));
-				else
+				else {
 					printf("Port %d Link Down\n", portid);
+					*all_ports_up = 0;
+				}
 				continue;
 			}
 			/* clear all_ports_up flag if any link down */

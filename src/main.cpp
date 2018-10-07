@@ -145,9 +145,11 @@ public:
     demo_option_paser ()
     : _ingress_side_server_mac()
     , _ingress_mac()
+	, _ingress_mac_val()
     , _ingress_side_port_id(-1)
     , _egress_side_server_mac()
     , _egress_mac()
+	, _egress_mac_val()
     , _egress_side_port_id() {
     }
 
@@ -272,6 +274,16 @@ public:
                 }
                 std::cout<<std::endl;
             }
+
+            for(auto& arr : _ingress_mac) {
+            		uint64_t* mac_val = reinterpret_cast<uint64_t*>(arr.data());
+            		_ingress_mac_val.push_back(*mac_val &  0x0000FFFFFFFFFFFF);
+            }
+
+            for(auto& arr : _egress_mac) {
+            		uint64_t* mac_val = reinterpret_cast<uint64_t*>(arr.data());
+            		_egress_mac_val.push_back(*mac_val &  0x0000FFFFFFFFFFFF);
+            }
         }
 
         return succeed;
@@ -281,11 +293,30 @@ public:
     inline int ingress_side_port_id() {
     		return _ingress_side_port_id;
     }
+
     inline int egress_side_port_id_count() {
     		return _egress_side_port_id.size();
     }
     inline int egress_side_port_id(int index) {
     		return _egress_side_port_id.at(index);
+    }
+
+    inline int ingress_server_index(uint64_t mac_val) {
+    		int res = 0;
+    		for(auto val : _ingress_mac_val) {
+    			if(mac_val == val) {
+    				return res;
+    			}
+    			res += 1;
+    		}
+    		return res;
+    }
+    inline int ingress_server_count() {
+    		return _ingress_mac_val.size();
+    }
+
+    inline uint64_t egress_mac_val(int index) {
+    		return _egress_mac_val.at(index);
     }
 
 private:
@@ -314,9 +345,11 @@ private:
 private:
     std::vector<std::string> _ingress_side_server_mac;
     std::vector<std::array<uint8_t, 6>> _ingress_mac;
+    std::vector<uint64_t> _ingress_mac_val;
     int _ingress_side_port_id;
     std::vector<std::string> _egress_side_server_mac;
     std::vector<std::array<uint8_t, 6>> _egress_mac;
+    std::vector<uint64_t> _egress_mac_val;
     std::vector<int> _egress_side_port_id;
 };
 
@@ -326,17 +359,52 @@ static inline uint64_t source_mac_of_rte_mbuf(struct rte_mbuf* mbuf) {
 	return (*src_mac_val) & 0x0000FFFFFFFFFFFF;
 }
 
+static inline void update_source_mac(struct rte_mbuf* mbuf, uint8_t server_index,
+	                                 uint64_t server_counter) {
+	// After update, the source mac of an mbuf becomes:
+	// XX:YY:YY:YY:YY:YY
+	// YY is the server counter, total of 40 bits, representing 2^40 packets
+	// XX is the server index
+	struct ether_hdr tmp_eth;
+	*(reinterpret_cast<uint64_t*>(&tmp_eth.s_addr.addr_bytes[0])) =
+			((uint64_t)server_index << 40) + (server_counter & 0x000000FFFFFFFFFF);
+	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+	eth->s_addr = tmp_eth.s_addr;
+}
+
+static inline uint64_t server_counter_of_source_mac(struct rte_mbuf* mbuf) {
+	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+    uint64_t* src_mac_val = reinterpret_cast<uint64_t*>(&eth->s_addr.addr_bytes[0]);
+    return (*src_mac_val) & 0x000000FFFFFFFFFF;
+}
+
+static inline uint8_t server_index_of_source_mac(struct rte_mbuf* mbuf) {
+	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+	return eth->s_addr.addr_bytes[5];
+}
+
+static inline void restore_source_mac(struct rte_mbuf* mbuf, uint64_t mac_val) {
+	struct ether_hdr tmp_eth;
+	*(reinterpret_cast<uint64_t*>(&tmp_eth.s_addr.addr_bytes[0])) = mac_val;
+	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+	eth->s_addr = tmp_eth.s_addr;
+}
+
 void ingress_pipeline(demo_option_paser& opt_parser,
 		              std::vector<uint64_t>& counters,
-					  std::vector<uint64_t>& tmp_counters) {
+					  std::vector<uint64_t>& tmp_counters,
+					  std::vector<std::vector<uint64_t>>& recorder) {
 	// Prerequisite:
 	// counters.size() == opt_parser.ingress_side_server_mac.size()
 	// tmp_counters.size() == counters.size()
+	// recorder.size() == MAX_PKT_BURST
+	// recorder.at(i).size == opt_parser.ingress_side_server_mac.size()
 
 	struct rte_mbuf *original_pkts[MAX_PKT_BURST];
+	struct rte_mbuf *filtered_pkts[MAX_PKT_BURST];
 	struct rte_mbuf *cloned_pkts[MAX_PKT_BURST];
 
-	for(int i=0; i<counters.size(); i++) {
+	for(int i=0; i<(int)counters.size(); i++) {
 		tmp_counters.at(i) = counters.at(i);
 	}
 
@@ -346,9 +414,109 @@ void ingress_pipeline(demo_option_paser& opt_parser,
 		return;
 	}
 
+	int filtered_size = 0;
+	for(int i=0; i<nb_rx; i++) {
+		struct rte_mbuf* pkt = original_pkts[i];
 
+		uint64_t mac_val = source_mac_of_rte_mbuf(pkt);
+		int server_index = opt_parser.ingress_server_index(mac_val);
+		if(server_index == opt_parser.ingress_server_count()) {
+			// The mac address does not match any of the ingress side server mac
+			rte_pktmbuf_free(pkt);
+			continue;
+		}
 
+		tmp_counters.at(server_index) += 1;
 
+		update_source_mac(pkt, server_index, tmp_counters.at(server_index));
+
+		for(int j=0; j<(int)tmp_counters.size(); j++) {
+			recorder.at(filtered_size).at(j) = tmp_counters.at(j);
+		}
+
+		filtered_pkts[filtered_size] = pkt;
+		filtered_size += 1;
+	}
+
+	int egress_port_count = opt_parser.egress_side_port_id_count();
+	for(int id=0; id<egress_port_count; id++) {
+		int egress_port_id = opt_parser.egress_side_port_id(id);
+		if(!(port_mask & (1 << egress_port_id))) {
+			continue;
+		}
+
+		bool clone_succeed = true;
+		for(int i=0; i<filtered_size; i++) {
+			cloned_pkts[i] = rte_pktmbuf_clone(filtered_pkts[i], l2fwd_pktmbuf_pool);
+			if(cloned_pkts[i] == nullptr) {
+				clone_succeed = false;
+			}
+		}
+		if(clone_succeed == false) {
+			for(int i=0; i<filtered_size; i++) {
+				if(cloned_pkts[i] != nullptr) {
+					rte_pktmbuf_free(cloned_pkts[i]);
+				}
+			}
+			continue;
+		}
+
+		uint16_t nb_tx = rte_eth_tx_burst(egress_port_id, 0, cloned_pkts, filtered_size);
+		if(nb_tx < filtered_size) {
+			for(int i = nb_tx; i<filtered_size; i++) {
+				rte_pktmbuf_free(cloned_pkts[i]);
+			}
+		}
+
+		if(nb_tx != 0) {
+			for(int i=0;  i<(int)counters.size(); i++) {
+				if(recorder.at(nb_tx-1).at(i) > counters.at(i)) {
+					counters.at(i) = recorder.at(nb_tx-1).at(i);
+				}
+			}
+		}
+	}
+
+	for(int i=0; i<filtered_size; i++) {
+		rte_pktmbuf_free(filtered_pkts[i]);
+	}
+}
+
+void egress_pipeline(int egress_port_id,
+		             demo_option_paser& opt_parser,
+					 std::vector<uint64_t>& counters) {
+
+	// Prerequisite:
+	// counters.size() == egress_side_server_mac.size();
+
+	struct rte_mbuf* original_pkts[MAX_PKT_BURST];
+	struct rte_mbuf* filtered_pkts[MAX_PKT_BURST];
+
+	uint16_t nb_rx = rte_eth_rx_burst(opt_parser.ingress_side_port_id(), 0,
+			 	 	 original_pkts, MAX_PKT_BURST);
+
+	int filtered_size = 0;
+	for(int i=0; i<nb_rx; i++) {
+		struct rte_mbuf* pkt = original_pkts[i];
+		uint64_t server_counter = server_counter_of_source_mac(pkt);
+		uint8_t server_index = server_index_of_source_mac(pkt);
+
+		if(counters.at(server_index) >= server_counter) {
+			rte_pktmbuf_free(pkt);
+			continue;
+		}
+
+		restore_source_mac(pkt, opt_parser.egress_mac_val(server_index));
+		filtered_pkts[filtered_size] = pkt;
+		filtered_size += 1;
+	}
+
+	uint16_t nb_tx = rte_eth_tx_burst(opt_parser.ingress_side_port_id(), 0, filtered_pkts, filtered_size);
+	if(nb_tx < filtered_size) {
+		for(int i = nb_tx; i<filtered_size; i++) {
+			rte_pktmbuf_free(filtered_pkts[i]);
+		}
+	}
 }
 
 int main(int argc, char **argv) {

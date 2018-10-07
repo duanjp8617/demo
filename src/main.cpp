@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
 
 	int max_port_id = opt_parser.ingress_side_port_id();
 	std::set<int> port_id_holder();
-	port_id_holder.insert(opt_parser.ingress_side_port_id());
+	port_id_holder.insert(max_port_id);
 	int count = opt_parser.egress_side_port_id_count();
 	for(int i=0; i<count; i++) {
 		auto res = port_id_holder.insert(opt_parser.egress_side_port_id(i));

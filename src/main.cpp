@@ -398,7 +398,6 @@ int main(int argc, char **argv) {
 		rte_eth_promiscuous_enable(portid);
 	}
 
-	uint16_t nb_ports = port_id_holder.size();
 	uint32_t port_mask = 0;
 	for(auto port_id : port_id_holder) {
 		port_mask = port_mask | (1 << port_id);

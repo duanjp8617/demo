@@ -28,6 +28,7 @@
 #include <sstream>
 #include <array>
 #include <cstdint>
+#include <set>
 
 #define NB_MBUF   8192
 #define MEMPOOL_CACHE_SIZE 256
@@ -88,6 +89,9 @@ public:
             else if(command == "--ingress-side-port-id") {
                 // The command_val should be an integer
                 _ingress_side_port_id = std::stoi(command_val);
+                if(_ingress_side_port_id < 0) {
+                		_ingress_side_port_id = -1;
+                }
             }
             else if(command == "--egress-side-server-mac") {
                 // The command_val should be have this format:
@@ -179,6 +183,17 @@ public:
         return succeed;
     }
 
+public:
+    int ingress_side_port_id() {
+    		return _ingress_side_port_id;
+    }
+    int egress_side_port_id_count() {
+    		return _egress_side_port_id.size();
+    }
+    int egress_side_port_id(int index) {
+    		return _egress_side_port_id.at(index);
+    }
+
 private:
      void usage(const char *prgname) {
         printf("%s [EAL options] -- --ingress-side-server-mac MACLIST --ingress-side-port-id PORTNUM \n"
@@ -236,6 +251,39 @@ int main(int argc, char **argv) {
 		rte_socket_id());
 	if (l2fwd_pktmbuf_pool == NULL)
 		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
+	else
+		std::cout << "Finish creating packet memory buffer pool." <<std::endl;
+
+	int max_port_id = opt_parser.ingress_side_port_id();
+	std::set<int> port_id_holder();
+	port_id_holder.insert(opt_parser.ingress_side_port_id());
+	int count = opt_parser.egress_side_port_id_count();
+	for(int i=0; i<count; i++) {
+		auto res = port_id_holder.insert(opt_parser.egress_side_port_id(i));
+		if(res.second == false) {
+			rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.");
+		}
+		if(opt_parser.egress_side_port_id(i) > max_port_id) {
+			max_port_id = opt_parser.egress_side_port_id(i);
+		}
+	}
+
+	uint16_t nb_ports = rte_eth_dev_count();
+	if (nb_ports == 0)
+		rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
+	else
+		std::cout<<(int)nb_ports<<" port available on this machine."<<std::endl;
+
+	if(max_port_id >= nb_ports) {
+		rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.");
+	}
+
+
+
+
+
+
+
 }
 
 // Processs input arguments

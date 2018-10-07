@@ -42,13 +42,15 @@ static volatile bool force_quit;
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
+static volatile uint32_t port_mask = 0;
+
 static void
-check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
+check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
 #define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
 	uint16_t portid;
-	uint8_t count, all_ports_up, print_flag = 0;
+	uint8_t count, print_flag = 0;
 	struct rte_eth_link link;
 
 	printf("\nChecking link status");
@@ -56,7 +58,7 @@ check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 	for (count = 0; count <= MAX_CHECK_TIME; count++) {
 		if (force_quit)
 			return;
-		all_ports_up = 1;
+		*all_ports_up = 1;
 		for (portid = 0; portid < port_num; portid++) {
 			if (force_quit)
 				return;
@@ -68,7 +70,7 @@ check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 			if (print_flag == 1) {
 				if (link.link_status)
 					printf(
-					"Port%d Link Up. Speed %u Mbps - %s\n",
+					"Port %d Link Up. Speed %u Mbps - %s\n",
 						portid, link.link_speed,
 				(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
 					("full-duplex") : ("half-duplex\n"));
@@ -78,7 +80,7 @@ check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 			}
 			/* clear all_ports_up flag if any link down */
 			if (link.link_status == ETH_LINK_DOWN) {
-				all_ports_up = 0;
+				*all_ports_up = 0;
 				break;
 			}
 		}
@@ -86,14 +88,14 @@ check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 		if (print_flag == 1)
 			break;
 
-		if (all_ports_up == 0) {
+		if (*all_ports_up == 0) {
 			printf(".");
 			fflush(stdout);
 			rte_delay_ms(CHECK_INTERVAL);
 		}
 
 		/* set the print_flag if all ports up or timeout */
-		if (all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
+		if (*all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
 			print_flag = 1;
 			printf("done\n");
 		}
@@ -107,6 +109,32 @@ signal_handler(int signum) {
                signum);
         force_quit = true;
     }
+}
+
+static int
+lsi_event_callback(uint16_t port_id, enum rte_eth_event_type type, void *param,
+		    void *ret_param)
+{
+	struct rte_eth_link link;
+
+	RTE_SET_USED(param);
+	RTE_SET_USED(ret_param);
+
+	// printf("\n\nIn registered callback...\n");
+	// printf("Event type: %s\n", type == RTE_ETH_EVENT_INTR_LSC ? "LSC interrupt" : "unknown event");
+	rte_eth_link_get_nowait(port_id, &link);
+	if (link.link_status) {
+		printf("Port %d Link Up - speed %u Mbps - %s\n\n",
+				port_id, (unsigned)link.link_speed,
+			(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+				("full-duplex") : ("half-duplex"));
+		port_mask = port_mask | (1 << port_id);
+	} else {
+		port_mask = port_mask & (~(1 << port_id));
+		printf("Port %d Link Down\n\n", port_id);
+	}
+
+	return 0;
 }
 
 class demo_option_paser {
@@ -247,13 +275,13 @@ public:
     }
 
 public:
-    int ingress_side_port_id() {
+    inline int ingress_side_port_id() {
     		return _ingress_side_port_id;
     }
-    int egress_side_port_id_count() {
+    inline int egress_side_port_id_count() {
     		return _egress_side_port_id.size();
     }
-    int egress_side_port_id(int index) {
+    inline int egress_side_port_id(int index) {
     		return _egress_side_port_id.at(index);
     }
 
@@ -289,6 +317,10 @@ private:
     std::vector<int> _egress_side_port_id;
 };
 
+void ingress_pipeline(demo_option_paser& opt_parser, std::vector<uint64_t>& counters) {
+
+}
+
 int main(int argc, char **argv) {
 	struct rte_eth_conf port_conf;
 
@@ -300,6 +332,8 @@ int main(int argc, char **argv) {
 	port_conf.rxmode.hw_strip_crc   = 1; /**< CRC stripped by hardware */
 
 	port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
+
+	port_conf.intr_conf.lsc = 1;
 
     /* init EAL */
     int ret = rte_eal_init(argc, argv);
@@ -334,7 +368,7 @@ int main(int argc, char **argv) {
 	for(int i=0; i<count; i++) {
 		auto res = port_id_holder.insert(opt_parser.egress_side_port_id(i));
 		if(res.second == false) {
-			rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.");
+			rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.\n");
 		}
 		if(opt_parser.egress_side_port_id(i) > max_port_id) {
 			max_port_id = opt_parser.egress_side_port_id(i);
@@ -348,7 +382,12 @@ int main(int argc, char **argv) {
 		std::cout<<(int)nb_ports<<" port available on this machine."<<std::endl;
 
 	if(max_port_id >= nb_ports) {
-		rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.");
+		rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.\n");
+	}
+
+	port_mask = 0;
+	for(auto port_id : port_id_holder) {
+		port_mask = port_mask | (1 << port_id);
 	}
 
 	for(auto id : port_id_holder) {
@@ -368,6 +407,14 @@ int main(int argc, char **argv) {
 			rte_exit(EXIT_FAILURE,
 				 "Cannot adjust number of descriptors: err=%d, port=%u\n",
 				 ret, portid);
+
+		/* register lsi interrupt callback, need to be after
+		 * rte_eth_dev_configure(). if (intr_conf.lsc == 0), no
+		 * lsc interrupt will be present, and below callback to
+		 * be registered will never be called.
+		 */
+		rte_eth_dev_callback_register(portid,
+			RTE_ETH_EVENT_INTR_LSC, lsi_event_callback, NULL);
 
 		/* init one RX queue */
 		fflush(stdout);
@@ -398,11 +445,12 @@ int main(int argc, char **argv) {
 		rte_eth_promiscuous_enable(portid);
 	}
 
-	uint32_t port_mask = 0;
-	for(auto port_id : port_id_holder) {
-		port_mask = port_mask | (1 << port_id);
+	uint8_t all_ports_up = 0;
+	check_all_ports_link_status(nb_ports, &all_ports_up);
+	if(all_ports_up == 0) {
+		rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
 	}
-	check_all_ports_link_status(nb_ports, port_mask);
+
 
 
 

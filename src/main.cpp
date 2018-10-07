@@ -32,6 +32,11 @@
 
 #define NB_MBUF   8192
 #define MEMPOOL_CACHE_SIZE 256
+#define RTE_TEST_RX_DESC_DEFAULT 128
+#define RTE_TEST_TX_DESC_DEFAULT 512
+
+static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
+static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
 static volatile bool force_quit;
 
@@ -229,7 +234,14 @@ private:
 int main(int argc, char **argv) {
 	struct rte_eth_conf port_conf;
 
+	port_conf.rxmode.split_hdr_size = 0;
+	port_conf.rxmode.header_split   = 0; /**< Header Split disabled */
+	port_conf.rxmode.hw_ip_checksum = 0; /**< IP checksum offload disabled */
+	port_conf.rxmode.hw_vlan_filter = 0; /**< VLAN filtering disabled */
+	port_conf.rxmode.jumbo_frame    = 0; /**< Jumbo Frame Support disabled */
+	port_conf.rxmode.hw_strip_crc   = 1; /**< CRC stripped by hardware */
 
+	port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 
     /* init EAL */
     int ret = rte_eal_init(argc, argv);
@@ -284,13 +296,48 @@ int main(int argc, char **argv) {
 	for(auto id : port_id_holder) {
 		uint16_t portid = id;
 
+		/* init port */
 		printf("Initializing port %u... ", portid);
 		fflush(stdout);
-
 		ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
 				  ret, portid);
+
+		ret = rte_eth_dev_adjust_nb_rx_tx_desc(portid, &nb_rxd,
+								       &nb_txd);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE,
+				 "Cannot adjust number of descriptors: err=%d, port=%u\n",
+				 ret, portid);
+
+		/* init one RX queue */
+		fflush(stdout);
+		ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
+						 rte_eth_dev_socket_id(portid),
+						 NULL,
+						 l2fwd_pktmbuf_pool);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
+				  ret, portid);
+
+		/* init one TX queue on each port */
+		fflush(stdout);
+		ret = rte_eth_tx_queue_setup(portid, 0, nb_txd,
+				rte_eth_dev_socket_id(portid),
+				NULL);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
+				ret, portid);
+
+		/* Start device */
+		ret = rte_eth_dev_start(portid);
+		if (ret < 0)
+			rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
+				  ret, portid);
+
+		printf("done: \n");
+		rte_eth_promiscuous_enable(portid);
 	}
 
 

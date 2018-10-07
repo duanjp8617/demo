@@ -9,7 +9,7 @@ include_directories (${CMAKE_SOURCE_DIR}/include)
 
 set (RTE_TARGET x86_64-native-linuxapp-gcc)
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -Wall -Wextra -Wno-unused-parameter -ggdb -g")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -O3 -Wall -Wextra -Wno-unused-parameter -ggdb -g -march=native")
 
 aux_source_directory (src SRCS)
 

@@ -34,6 +34,7 @@
 #define MEMPOOL_CACHE_SIZE 256
 #define RTE_TEST_RX_DESC_DEFAULT 128
 #define RTE_TEST_TX_DESC_DEFAULT 512
+#define MAX_PKT_BURST 32
 
 static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
@@ -319,7 +320,34 @@ private:
     std::vector<int> _egress_side_port_id;
 };
 
-void ingress_pipeline(demo_option_paser& opt_parser, std::vector<uint64_t>& counters) {
+static inline uint64_t source_mac_of_rte_mbuf(struct rte_mbuf* mbuf) {
+	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+	uint64_t* src_mac_val = reinterpret_cast<uint64_t*>(&eth->s_addr.addr_bytes[0]);
+	return (*src_mac_val) & 0x0000FFFFFFFFFFFF;
+}
+
+void ingress_pipeline(demo_option_paser& opt_parser,
+		              std::vector<uint64_t>& counters,
+					  std::vector<uint64_t>& tmp_counters) {
+	// Prerequisite:
+	// counters.size() == opt_parser.ingress_side_server_mac.size()
+	// tmp_counters.size() == counters.size()
+
+	struct rte_mbuf *original_pkts[MAX_PKT_BURST];
+	struct rte_mbuf *cloned_pkts[MAX_PKT_BURST];
+
+	for(int i=0; i<counters.size(); i++) {
+		tmp_counters.at(i) = counters.at(i);
+	}
+
+	uint16_t nb_rx = rte_eth_rx_burst(opt_parser.ingress_side_port_id(), 0,
+			 	 	 original_pkts, MAX_PKT_BURST);
+	if(unlikely(nb_rx == 0)) {
+		return;
+	}
+
+
+
 
 }
 
@@ -450,8 +478,10 @@ int main(int argc, char **argv) {
 	uint8_t all_ports_up = 0;
 	check_all_ports_link_status(nb_ports, &all_ports_up);
 	if(all_ports_up == 0) {
-		rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
+		// rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
 	}
+
+
 
 
 

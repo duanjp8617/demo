@@ -50,59 +50,59 @@ check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
 #define MAX_CHECK_TIME 50 /* 9s (90 * 100ms) in total */
-	uint16_t portid;
-	uint8_t count, print_flag = 0;
-	struct rte_eth_link link;
+    uint16_t portid;
+    uint8_t count, print_flag = 0;
+    struct rte_eth_link link;
 
-	printf("\nChecking link status");
-	fflush(stdout);
-	for (count = 0; count <= MAX_CHECK_TIME; count++) {
-		if (force_quit)
-			return;
-		*all_ports_up = 1;
-		for (portid = 0; portid < port_num; portid++) {
-			if (force_quit)
-				return;
-			if ((port_mask & (1 << portid)) == 0)
-				continue;
-			memset(&link, 0, sizeof(link));
-			rte_eth_link_get_nowait(portid, &link);
-			/* print link status if flag set */
-			if (print_flag == 1) {
-				if (link.link_status)
-					printf(
-					"Port %d Link Up. Speed %u Mbps - %s\n",
-						portid, link.link_speed,
-				(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
-					("full-duplex") : ("half-duplex\n"));
-				else {
-					printf("Port %d Link Down\n", portid);
-					*all_ports_up = 0;
-				}
-				continue;
-			}
-			/* clear all_ports_up flag if any link down */
-			if (link.link_status == ETH_LINK_DOWN) {
-				*all_ports_up = 0;
-				break;
-			}
-		}
-		/* after finally printing all link status, get out */
-		if (print_flag == 1)
-			break;
+    printf("\nChecking link status");
+    fflush(stdout);
+    for (count = 0; count <= MAX_CHECK_TIME; count++) {
+        if (force_quit)
+            return;
+        *all_ports_up = 1;
+        for (portid = 0; portid < port_num; portid++) {
+            if (force_quit)
+                return;
+            if ((port_mask & (1 << portid)) == 0)
+                continue;
+            memset(&link, 0, sizeof(link));
+            rte_eth_link_get_nowait(portid, &link);
+            /* print link status if flag set */
+            if (print_flag == 1) {
+                if (link.link_status)
+                    printf(
+                    "Port %d Link Up. Speed %u Mbps - %s\n",
+                        portid, link.link_speed,
+                (link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+                    ("full-duplex") : ("half-duplex\n"));
+                else {
+                    printf("Port %d Link Down\n", portid);
+                    *all_ports_up = 0;
+                }
+                continue;
+            }
+            /* clear all_ports_up flag if any link down */
+            if (link.link_status == ETH_LINK_DOWN) {
+                *all_ports_up = 0;
+                break;
+            }
+        }
+        /* after finally printing all link status, get out */
+        if (print_flag == 1)
+            break;
 
-		if (*all_ports_up == 0) {
-			printf(".");
-			fflush(stdout);
-			rte_delay_ms(CHECK_INTERVAL);
-		}
+        if (*all_ports_up == 0) {
+            printf(".");
+            fflush(stdout);
+            rte_delay_ms(CHECK_INTERVAL);
+        }
 
-		/* set the print_flag if all ports up or timeout */
-		if (*all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
-			print_flag = 1;
-			printf("done\n");
-		}
-	}
+        /* set the print_flag if all ports up or timeout */
+        if (*all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
+            print_flag = 1;
+            printf("done\n");
+        }
+    }
 }
 
 static void
@@ -116,28 +116,28 @@ signal_handler(int signum) {
 
 static int
 lsi_event_callback(uint16_t port_id, enum rte_eth_event_type type, void *param,
-		    void *ret_param)
+            void *ret_param)
 {
-	struct rte_eth_link link;
+    struct rte_eth_link link;
 
-	RTE_SET_USED(param);
-	RTE_SET_USED(ret_param);
+    RTE_SET_USED(param);
+    RTE_SET_USED(ret_param);
 
-	// printf("\n\nIn registered callback...\n");
-	// printf("Event type: %s\n", type == RTE_ETH_EVENT_INTR_LSC ? "LSC interrupt" : "unknown event");
-	rte_eth_link_get_nowait(port_id, &link);
-	if (link.link_status) {
-		printf("Port %d Link Up - speed %u Mbps - %s\n\n",
-				port_id, (unsigned)link.link_speed,
-			(link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
-				("full-duplex") : ("half-duplex"));
-		port_mask = port_mask | (1 << port_id);
-	} else {
-		port_mask = port_mask & (~(1 << port_id));
-		printf("Port %d Link Down\n\n", port_id);
-	}
+    // printf("\n\nIn registered callback...\n");
+    // printf("Event type: %s\n", type == RTE_ETH_EVENT_INTR_LSC ? "LSC interrupt" : "unknown event");
+    rte_eth_link_get_nowait(port_id, &link);
+    if (link.link_status) {
+        printf("Port %d Link Up - speed %u Mbps - %s\n\n",
+                port_id, (unsigned)link.link_speed,
+            (link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+                ("full-duplex") : ("half-duplex"));
+        port_mask = port_mask | (1 << port_id);
+    } else {
+        port_mask = port_mask & (~(1 << port_id));
+        printf("Port %d Link Down\n\n", port_id);
+    }
 
-	return 0;
+    return 0;
 }
 
 class demo_option_paser {
@@ -145,11 +145,11 @@ public:
     demo_option_paser ()
     : _ingress_side_server_mac()
     , _ingress_mac()
-	, _ingress_mac_val()
+    , _ingress_mac_val()
     , _ingress_side_port_id(-1)
     , _egress_side_server_mac()
     , _egress_mac()
-	, _egress_mac_val()
+    , _egress_mac_val()
     , _egress_side_port_id() {
     }
 
@@ -186,7 +186,7 @@ public:
                 // The command_val should be an integer
                 _ingress_side_port_id = std::stoi(command_val);
                 if(_ingress_side_port_id < 0) {
-                		_ingress_side_port_id = -1;
+                        _ingress_side_port_id = -1;
                 }
             }
             else if(command == "--egress-side-server-mac") {
@@ -276,13 +276,13 @@ public:
             }
 
             for(auto& arr : _ingress_mac) {
-            		uint64_t* mac_val = reinterpret_cast<uint64_t*>(arr.data());
-            		_ingress_mac_val.push_back(*mac_val &  0x0000FFFFFFFFFFFF);
+                    uint64_t* mac_val = reinterpret_cast<uint64_t*>(arr.data());
+                    _ingress_mac_val.push_back(*mac_val &  0x0000FFFFFFFFFFFF);
             }
 
             for(auto& arr : _egress_mac) {
-            		uint64_t* mac_val = reinterpret_cast<uint64_t*>(arr.data());
-            		_egress_mac_val.push_back(*mac_val &  0x0000FFFFFFFFFFFF);
+                    uint64_t* mac_val = reinterpret_cast<uint64_t*>(arr.data());
+                    _egress_mac_val.push_back(*mac_val &  0x0000FFFFFFFFFFFF);
             }
         }
 
@@ -291,32 +291,35 @@ public:
 
 public:
     inline int ingress_side_port_id() {
-    		return _ingress_side_port_id;
+            return _ingress_side_port_id;
     }
 
     inline int egress_side_port_id_count() {
-    		return _egress_side_port_id.size();
+            return _egress_side_port_id.size();
     }
     inline int egress_side_port_id(int index) {
-    		return _egress_side_port_id.at(index);
+            return _egress_side_port_id.at(index);
     }
 
     inline int ingress_server_index(uint64_t mac_val) {
-    		int res = 0;
-    		for(auto val : _ingress_mac_val) {
-    			if(mac_val == val) {
-    				return res;
-    			}
-    			res += 1;
-    		}
-    		return res;
+            int res = 0;
+            for(auto val : _ingress_mac_val) {
+                if(mac_val == val) {
+                    return res;
+                }
+                res += 1;
+            }
+            return res;
     }
     inline int ingress_server_count() {
-    		return _ingress_mac_val.size();
+            return _ingress_mac_val.size();
     }
 
     inline uint64_t egress_mac_val(int index) {
-    		return _egress_mac_val.at(index);
+            return _egress_mac_val.at(index);
+    }
+    inline int egress_server_count() {
+        return _egress_mac_val.size();
     }
 
 private:
@@ -354,184 +357,193 @@ private:
 };
 
 static inline uint64_t source_mac_of_rte_mbuf(struct rte_mbuf* mbuf) {
-	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
-	uint64_t* src_mac_val = reinterpret_cast<uint64_t*>(&eth->s_addr.addr_bytes[0]);
-	return (*src_mac_val) & 0x0000FFFFFFFFFFFF;
+    struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+    uint64_t* src_mac_val = reinterpret_cast<uint64_t*>(&eth->s_addr.addr_bytes[0]);
+    return (*src_mac_val) & 0x0000FFFFFFFFFFFF;
 }
 
 static inline void update_source_mac(struct rte_mbuf* mbuf, uint8_t server_index,
-	                                 uint64_t server_counter) {
-	// After update, the source mac of an mbuf becomes:
-	// XX:YY:YY:YY:YY:YY
-	// YY is the server counter, total of 40 bits, representing 2^40 packets
-	// XX is the server index
-	struct ether_hdr tmp_eth;
-	*(reinterpret_cast<uint64_t*>(&tmp_eth.s_addr.addr_bytes[0])) =
-			((uint64_t)server_index << 40) + (server_counter & 0x000000FFFFFFFFFF);
-	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
-	eth->s_addr = tmp_eth.s_addr;
+                                     uint64_t server_counter) {
+    // After update, the source mac of an mbuf becomes:
+    // XX:YY:YY:YY:YY:YY
+    // YY is the server counter, total of 40 bits, representing 2^40 packets
+    // XX is the server index
+    struct ether_hdr tmp_eth;
+    void* tmp = &tmp_eth.s_addr.addr_bytes[0];
+    *(reinterpret_cast<uint64_t*>(tmp)) =
+            ((uint64_t)server_index << 40) + (server_counter & 0x000000FFFFFFFFFF);
+    struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+    eth->s_addr = tmp_eth.s_addr;
 }
 
 static inline uint64_t server_counter_of_source_mac(struct rte_mbuf* mbuf) {
-	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+    struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
     uint64_t* src_mac_val = reinterpret_cast<uint64_t*>(&eth->s_addr.addr_bytes[0]);
     return (*src_mac_val) & 0x000000FFFFFFFFFF;
 }
 
 static inline uint8_t server_index_of_source_mac(struct rte_mbuf* mbuf) {
-	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
-	return eth->s_addr.addr_bytes[5];
+    struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+    return eth->s_addr.addr_bytes[5];
 }
 
 static inline void restore_source_mac(struct rte_mbuf* mbuf, uint64_t mac_val) {
-	struct ether_hdr tmp_eth;
-	*(reinterpret_cast<uint64_t*>(&tmp_eth.s_addr.addr_bytes[0])) = mac_val;
-	struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
-	eth->s_addr = tmp_eth.s_addr;
+    struct ether_hdr tmp_eth;
+    void* tmp = &tmp_eth.s_addr.addr_bytes[0];
+    *(reinterpret_cast<uint64_t*>(tmp)) = mac_val;
+    struct ether_hdr *eth = rte_pktmbuf_mtod(mbuf, struct ether_hdr *);
+    eth->s_addr = tmp_eth.s_addr;
 }
 
 void ingress_pipeline(demo_option_paser& opt_parser,
-		              std::vector<uint64_t>& counters,
-					  std::vector<uint64_t>& tmp_counters,
-					  std::vector<std::vector<uint64_t>>& recorder) {
-	// Prerequisite:
-	// counters.size() == opt_parser.ingress_side_server_mac.size()
-	// tmp_counters.size() == counters.size()
-	// recorder.size() == MAX_PKT_BURST
-	// recorder.at(i).size == opt_parser.ingress_side_server_mac.size()
+                      std::vector<uint64_t>& counters,
+                      std::vector<uint64_t>& tmp_counters,
+                      std::vector<std::vector<uint64_t>>& recorder) {
+    // Prerequisite:
+    // counters.size() == opt_parser.ingress_side_server_mac.size()
+    // tmp_counters.size() == counters.size()
+    // recorder.size() == MAX_PKT_BURST
+    // recorder.at(i).size == opt_parser.ingress_side_server_mac.size()
 
-	struct rte_mbuf *original_pkts[MAX_PKT_BURST];
-	struct rte_mbuf *filtered_pkts[MAX_PKT_BURST];
-	struct rte_mbuf *cloned_pkts[MAX_PKT_BURST];
+    struct rte_mbuf *original_pkts[MAX_PKT_BURST];
+    struct rte_mbuf *filtered_pkts[MAX_PKT_BURST];
+    struct rte_mbuf *cloned_pkts[MAX_PKT_BURST];
 
-	for(int i=0; i<(int)counters.size(); i++) {
-		tmp_counters.at(i) = counters.at(i);
-	}
+    for(int i=0; i<(int)counters.size(); i++) {
+        tmp_counters.at(i) = counters.at(i);
+    }
 
-	uint16_t nb_rx = rte_eth_rx_burst(opt_parser.ingress_side_port_id(), 0,
-			 	 	 original_pkts, MAX_PKT_BURST);
-	if(unlikely(nb_rx == 0)) {
-		return;
-	}
+    uint16_t nb_rx = rte_eth_rx_burst(opt_parser.ingress_side_port_id(), 0,
+                       original_pkts, MAX_PKT_BURST);
+    if(unlikely(nb_rx == 0)) {
+        return;
+    }
 
-	int filtered_size = 0;
-	for(int i=0; i<nb_rx; i++) {
-		struct rte_mbuf* pkt = original_pkts[i];
+    int filtered_size = 0;
+    for(int i=0; i<nb_rx; i++) {
+        struct rte_mbuf* pkt = original_pkts[i];
 
-		uint64_t mac_val = source_mac_of_rte_mbuf(pkt);
-		int server_index = opt_parser.ingress_server_index(mac_val);
-		if(server_index == opt_parser.ingress_server_count()) {
-			// The mac address does not match any of the ingress side server mac
-			rte_pktmbuf_free(pkt);
-			continue;
-		}
+        uint64_t mac_val = source_mac_of_rte_mbuf(pkt);
+        int server_index = opt_parser.ingress_server_index(mac_val);
+        if(server_index == opt_parser.ingress_server_count()) {
+            // The mac address does not match any of the ingress side server mac
+            rte_pktmbuf_free(pkt);
+            continue;
+        }
 
-		tmp_counters.at(server_index) += 1;
+        tmp_counters.at(server_index) += 1;
 
-		update_source_mac(pkt, server_index, tmp_counters.at(server_index));
+        update_source_mac(pkt, server_index, tmp_counters.at(server_index));
 
-		for(int j=0; j<(int)tmp_counters.size(); j++) {
-			recorder.at(filtered_size).at(j) = tmp_counters.at(j);
-		}
+        for(int j=0; j<(int)tmp_counters.size(); j++) {
+            recorder.at(filtered_size).at(j) = tmp_counters.at(j);
+        }
 
-		filtered_pkts[filtered_size] = pkt;
-		filtered_size += 1;
-	}
+        filtered_pkts[filtered_size] = pkt;
+        filtered_size += 1;
+    }
 
-	int egress_port_count = opt_parser.egress_side_port_id_count();
-	for(int id=0; id<egress_port_count; id++) {
-		int egress_port_id = opt_parser.egress_side_port_id(id);
-		if(!(port_mask & (1 << egress_port_id))) {
-			continue;
-		}
+    int egress_port_count = opt_parser.egress_side_port_id_count();
+    uint16_t max_nb_tx = 0;
+    for(int id=0; id<egress_port_count; id++) {
+        int egress_port_id = opt_parser.egress_side_port_id(id);
+        if(!(port_mask & (1 << egress_port_id))) {
+            continue;
+        }
 
-		bool clone_succeed = true;
-		for(int i=0; i<filtered_size; i++) {
-			cloned_pkts[i] = rte_pktmbuf_clone(filtered_pkts[i], l2fwd_pktmbuf_pool);
-			if(cloned_pkts[i] == nullptr) {
-				clone_succeed = false;
-			}
-		}
-		if(clone_succeed == false) {
-			for(int i=0; i<filtered_size; i++) {
-				if(cloned_pkts[i] != nullptr) {
-					rte_pktmbuf_free(cloned_pkts[i]);
-				}
-			}
-			continue;
-		}
+        bool clone_succeed = true;
+        for(int i=0; i<filtered_size; i++) {
+            cloned_pkts[i] = rte_pktmbuf_clone(filtered_pkts[i], l2fwd_pktmbuf_pool);
+            if(cloned_pkts[i] == nullptr) {
+                clone_succeed = false;
+            }
+        }
+        if(clone_succeed == false) {
+            for(int i=0; i<filtered_size; i++) {
+                if(cloned_pkts[i] != nullptr) {
+                    rte_pktmbuf_free(cloned_pkts[i]);
+                }
+            }
+            continue;
+        }
 
-		uint16_t nb_tx = rte_eth_tx_burst(egress_port_id, 0, cloned_pkts, filtered_size);
-		if(nb_tx < filtered_size) {
-			for(int i = nb_tx; i<filtered_size; i++) {
-				rte_pktmbuf_free(cloned_pkts[i]);
-			}
-		}
+        uint16_t nb_tx = rte_eth_tx_burst(egress_port_id, 0, cloned_pkts, filtered_size);
+        if(nb_tx < filtered_size) {
+            for(int i = nb_tx; i<filtered_size; i++) {
+                rte_pktmbuf_free(cloned_pkts[i]);
+            }
+        }
 
-		if(nb_tx != 0) {
-			for(int i=0;  i<(int)counters.size(); i++) {
-				if(recorder.at(nb_tx-1).at(i) > counters.at(i)) {
-					counters.at(i) = recorder.at(nb_tx-1).at(i);
-				}
-			}
-		}
-	}
+        if(nb_tx > max_nb_tx) {
+            max_nb_tx = nb_tx;
+        }
+    }
 
-	for(int i=0; i<filtered_size; i++) {
-		rte_pktmbuf_free(filtered_pkts[i]);
-	}
+    if(max_nb_tx != 0) {
+        for(int i=0;  i<(int)counters.size(); i++) {
+            counters.at(i) = recorder.at(max_nb_tx-1).at(i);
+        }
+    }
+
+    for(int i=0; i<filtered_size; i++) {
+        rte_pktmbuf_free(filtered_pkts[i]);
+    }
 }
 
 void egress_pipeline(int egress_port_id,
-		             demo_option_paser& opt_parser,
-					 std::vector<uint64_t>& counters) {
+                     demo_option_paser& opt_parser,
+                     std::vector<uint64_t>& counters) {
 
-	// Prerequisite:
-	// counters.size() == egress_side_server_mac.size();
+    // Prerequisite:
+    // counters.size() == egress_side_server_mac.size();
 
-	struct rte_mbuf* original_pkts[MAX_PKT_BURST];
-	struct rte_mbuf* filtered_pkts[MAX_PKT_BURST];
+    struct rte_mbuf* original_pkts[MAX_PKT_BURST];
+    struct rte_mbuf* filtered_pkts[MAX_PKT_BURST];
 
-	uint16_t nb_rx = rte_eth_rx_burst(opt_parser.ingress_side_port_id(), 0,
-			 	 	 original_pkts, MAX_PKT_BURST);
+    uint16_t nb_rx = rte_eth_rx_burst(egress_port_id, 0,
+                       original_pkts, MAX_PKT_BURST);
 
-	int filtered_size = 0;
-	for(int i=0; i<nb_rx; i++) {
-		struct rte_mbuf* pkt = original_pkts[i];
-		uint64_t server_counter = server_counter_of_source_mac(pkt);
-		uint8_t server_index = server_index_of_source_mac(pkt);
+    int filtered_size = 0;
+    for(int i=0; i<nb_rx; i++) {
+        struct rte_mbuf* pkt = original_pkts[i];
+        uint64_t server_counter = server_counter_of_source_mac(pkt);
+        uint8_t server_index = server_index_of_source_mac(pkt);
 
-		if(counters.at(server_index) >= server_counter) {
-			rte_pktmbuf_free(pkt);
-			continue;
-		}
+        if(counters.at(server_index) >= server_counter) {
+            rte_pktmbuf_free(pkt);
+            continue;
+        }
 
-		restore_source_mac(pkt, opt_parser.egress_mac_val(server_index));
-		filtered_pkts[filtered_size] = pkt;
-		filtered_size += 1;
-	}
+        counters.at(server_index) = server_counter;
 
-	uint16_t nb_tx = rte_eth_tx_burst(opt_parser.ingress_side_port_id(), 0, filtered_pkts, filtered_size);
-	if(nb_tx < filtered_size) {
-		for(int i = nb_tx; i<filtered_size; i++) {
-			rte_pktmbuf_free(filtered_pkts[i]);
-		}
-	}
+        restore_source_mac(pkt, opt_parser.egress_mac_val(server_index));
+        
+        filtered_pkts[filtered_size] = pkt;
+        filtered_size += 1;
+    }
+
+    uint16_t nb_tx = rte_eth_tx_burst(opt_parser.ingress_side_port_id(), 0, 
+                                      filtered_pkts, filtered_size);
+    if(nb_tx < filtered_size) {
+        for(int i = nb_tx; i<filtered_size; i++) {
+            rte_pktmbuf_free(filtered_pkts[i]);
+        }
+    }
 }
 
 int main(int argc, char **argv) {
-	struct rte_eth_conf port_conf;
+    struct rte_eth_conf port_conf;
 
-	port_conf.rxmode.split_hdr_size = 0;
-	port_conf.rxmode.header_split   = 0; /**< Header Split disabled */
-	port_conf.rxmode.hw_ip_checksum = 0; /**< IP checksum offload disabled */
-	port_conf.rxmode.hw_vlan_filter = 0; /**< VLAN filtering disabled */
-	port_conf.rxmode.jumbo_frame    = 0; /**< Jumbo Frame Support disabled */
-	port_conf.rxmode.hw_strip_crc   = 1; /**< CRC stripped by hardware */
+    port_conf.rxmode.split_hdr_size = 0;
+    port_conf.rxmode.header_split   = 0; /**< Header Split disabled */
+    port_conf.rxmode.hw_ip_checksum = 0; /**< IP checksum offload disabled */
+    port_conf.rxmode.hw_vlan_filter = 0; /**< VLAN filtering disabled */
+    port_conf.rxmode.jumbo_frame    = 0; /**< Jumbo Frame Support disabled */
+    port_conf.rxmode.hw_strip_crc   = 1; /**< CRC stripped by hardware */
 
-	port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
+    port_conf.txmode.mq_mode = ETH_MQ_TX_NONE;
 
-	port_conf.intr_conf.lsc = 1;
+    port_conf.intr_conf.lsc = 1;
 
     /* init EAL */
     int ret = rte_eal_init(argc, argv);
@@ -551,145 +563,122 @@ int main(int argc, char **argv) {
         rte_exit(EXIT_FAILURE, "Invalid demo arguments\n");
     }
 
-	l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
-		MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
-		rte_socket_id());
-	if (l2fwd_pktmbuf_pool == NULL)
-		rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
-	else
-		std::cout << "Finish creating packet memory buffer pool." <<std::endl;
+    l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
+        MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
+        rte_socket_id());
+    if (l2fwd_pktmbuf_pool == NULL)
+        rte_exit(EXIT_FAILURE, "Cannot init mbuf pool\n");
+    else
+        std::cout << "Finish creating packet memory buffer pool." <<std::endl;
 
-	int max_port_id = opt_parser.ingress_side_port_id();
-	std::set<int> port_id_holder;
-	port_id_holder.insert(max_port_id);
-	int count = opt_parser.egress_side_port_id_count();
-	for(int i=0; i<count; i++) {
-		auto res = port_id_holder.insert(opt_parser.egress_side_port_id(i));
-		if(res.second == false) {
-			rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.\n");
-		}
-		if(opt_parser.egress_side_port_id(i) > max_port_id) {
-			max_port_id = opt_parser.egress_side_port_id(i);
-		}
-	}
+    int max_port_id = opt_parser.ingress_side_port_id();
+    std::set<int> port_id_holder;
+    port_id_holder.insert(max_port_id);
+    int count = opt_parser.egress_side_port_id_count();
+    for(int i=0; i<count; i++) {
+        auto res = port_id_holder.insert(opt_parser.egress_side_port_id(i));
+        if(res.second == false) {
+            rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.\n");
+        }
+        if(opt_parser.egress_side_port_id(i) > max_port_id) {
+            max_port_id = opt_parser.egress_side_port_id(i);
+        }
+    }
 
-	uint16_t nb_ports = rte_eth_dev_count();
-	if (nb_ports == 0)
-		rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
-	else
-		std::cout<<(int)nb_ports<<" port available on this machine."<<std::endl;
+    uint16_t nb_ports = rte_eth_dev_count();
+    if (nb_ports == 0)
+        rte_exit(EXIT_FAILURE, "No Ethernet ports - bye\n");
+    else
+        std::cout<<(int)nb_ports<<" port available on this machine."<<std::endl;
 
-	if(max_port_id >= nb_ports) {
-		rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.\n");
-	}
+    if(max_port_id >= nb_ports) {
+        rte_exit(EXIT_FAILURE, "Invalid ingress/egress port id.\n");
+    }
 
-	port_mask = 0;
-	for(auto port_id : port_id_holder) {
-		port_mask = port_mask | (1 << port_id);
-	}
+    port_mask = 0;
+    for(auto port_id : port_id_holder) {
+        port_mask = port_mask | (1 << port_id);
+    }
 
-	for(auto id : port_id_holder) {
-		uint16_t portid = id;
+    for(auto id : port_id_holder) {
+        uint16_t portid = id;
 
-		/* init port */
-		printf("Initializing port %u... ", portid);
-		fflush(stdout);
-		ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
-				  ret, portid);
+        /* init port */
+        printf("Initializing port %u... ", portid);
+        fflush(stdout);
+        ret = rte_eth_dev_configure(portid, 1, 1, &port_conf);
+        if (ret < 0)
+            rte_exit(EXIT_FAILURE, "Cannot configure device: err=%d, port=%u\n",
+                  ret, portid);
 
-		ret = rte_eth_dev_adjust_nb_rx_tx_desc(portid, &nb_rxd,
-								       &nb_txd);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE,
-				 "Cannot adjust number of descriptors: err=%d, port=%u\n",
-				 ret, portid);
+        ret = rte_eth_dev_adjust_nb_rx_tx_desc(portid, &nb_rxd,
+                                       &nb_txd);
+        if (ret < 0)
+            rte_exit(EXIT_FAILURE,
+                 "Cannot adjust number of descriptors: err=%d, port=%u\n",
+                 ret, portid);
 
-		/* register lsi interrupt callback, need to be after
-		 * rte_eth_dev_configure(). if (intr_conf.lsc == 0), no
-		 * lsc interrupt will be present, and below callback to
-		 * be registered will never be called.
-		 */
-		rte_eth_dev_callback_register(portid,
-			RTE_ETH_EVENT_INTR_LSC, lsi_event_callback, NULL);
+        /* register lsi interrupt callback, need to be after
+         * rte_eth_dev_configure(). if (intr_conf.lsc == 0), no
+         * lsc interrupt will be present, and below callback to
+         * be registered will never be called.
+         */
+        rte_eth_dev_callback_register(portid,
+            RTE_ETH_EVENT_INTR_LSC, lsi_event_callback, NULL);
 
-		/* init one RX queue */
-		fflush(stdout);
-		ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
-						 rte_eth_dev_socket_id(portid),
-						 NULL,
-						 l2fwd_pktmbuf_pool);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
-				  ret, portid);
+        /* init one RX queue */
+        fflush(stdout);
+        ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
+                         rte_eth_dev_socket_id(portid),
+                         NULL,
+                         l2fwd_pktmbuf_pool);
+        if (ret < 0)
+            rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
+                  ret, portid);
 
-		/* init one TX queue on each port */
-		fflush(stdout);
-		ret = rte_eth_tx_queue_setup(portid, 0, nb_txd,
-				rte_eth_dev_socket_id(portid),
-				NULL);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
-				ret, portid);
+        /* init one TX queue on each port */
+        fflush(stdout);
+        ret = rte_eth_tx_queue_setup(portid, 0, nb_txd,
+                rte_eth_dev_socket_id(portid),
+                NULL);
+        if (ret < 0)
+            rte_exit(EXIT_FAILURE, "rte_eth_tx_queue_setup:err=%d, port=%u\n",
+                ret, portid);
 
-		/* Start device */
-		ret = rte_eth_dev_start(portid);
-		if (ret < 0)
-			rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
-				  ret, portid);
+        /* Start device */
+        ret = rte_eth_dev_start(portid);
+        if (ret < 0)
+            rte_exit(EXIT_FAILURE, "rte_eth_dev_start:err=%d, port=%u\n",
+                  ret, portid);
 
-		printf("done. \n");
-		rte_eth_promiscuous_enable(portid);
-	}
+        printf("done. \n");
+        rte_eth_promiscuous_enable(portid);
+    }
 
-	uint8_t all_ports_up = 0;
-	check_all_ports_link_status(nb_ports, &all_ports_up);
-	if(all_ports_up == 0) {
-		// rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
-	}
+    uint8_t all_ports_up = 0;
+    check_all_ports_link_status(nb_ports, &all_ports_up);
+    if(all_ports_up == 0) {
+        // rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
+    }
 
+    std::vector<uint64_t> ingress_counters(opt_parser.ingress_server_count(), 0);
+    std::vector<uint64_t> ingress_tmp_counters(opt_parser.ingress_server_count(), 0);
+    std::vector<std::vector<uint64_t>> ingress_recorder;
+    for(int i=0; i<MAX_PKT_BURST; i++) {
+        ingress_recorder.push_back(
+            std::vector<uint64_t>(opt_parser.ingress_server_count(), 0));
+    }
 
-
-
-
-
+    std::vector<uint64_t> egress_counters(opt_parser.egress_server_count(), 0);
+    
+    while(!force_quit) {
+        ingress_pipeline(opt_parser,
+                         ingress_counters,
+                         ingress_tmp_counters,
+                         ingress_recorder);
+        
+        for(int i=0; i<opt_parser.egress_side_port_id_count(); i++) {
+            egress_pipeline(opt_parser.egress_side_port_id(i), opt_parser, egress_counters);
+        }
+    }
 }
-
-// Processs input arguments
-// ....
-// ingress-side-server-mac = xx:xx:xx, xx:xx:xx,
-// ingress-side-port-id = 0, 1, 2
-// egress-side-server-mac = xx:xx:xx, xx:xx:xx
-// egress-side-port-id = 0,1,2
-
-// RTE initialization
-
-// launch worker thread, but only keep one worker thread alive for printing
-
-// Enter the main worker function
-
-// void main_worker_function (...) {
-// A big loop {
-// Poll the ingress port, feed the traffic into ingress pipeline
-// Poll each of the egress port, feed the traffic into egress pipeline
-// }
-// }
-
-// void ingress_pipeline (...) {
-// For all the packets
-// Parse the packet
-// If the packet is arp, do nothing
-// If the packet's source mac address does not match ingress-side-server-mac, drop
-// If the packet's source mac address matches ingress-side-server-mac, modify the source mac into an id and a counter
-
-// Send the packet batch out from each of the port.
-// Keep the maximum number of packets that are sent.
-// Increase the counter according to the maximum number of packets that are sent.
-// Free unsent packets.
-
-// }
-
-// void egress_pipeline () {
-
-// }

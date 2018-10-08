@@ -54,7 +54,7 @@ check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
     uint8_t count, print_flag = 0;
     struct rte_eth_link link;
 
-    printf("\nChecking link status");
+    printf("\nChecking link status\n");
     fflush(stdout);
     for (count = 0; count <= MAX_CHECK_TIME; count++) {
         if (force_quit)
@@ -69,13 +69,7 @@ check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
             rte_eth_link_get_nowait(portid, &link);
             /* print link status if flag set */
             if (print_flag == 1) {
-                if (link.link_status)
-                    printf(
-                    "Port %d Link Up. Speed %u Mbps - %s\n",
-                        portid, link.link_speed,
-                (link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
-                    ("full-duplex") : ("half-duplex\n"));
-                else {
+                if (!link.link_status) {
                     printf("Port %d Link Down\n", portid);
                     *all_ports_up = 0;
                 }
@@ -92,15 +86,12 @@ check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
             break;
 
         if (*all_ports_up == 0) {
-            printf(".");
-            fflush(stdout);
             rte_delay_ms(CHECK_INTERVAL);
         }
 
         /* set the print_flag if all ports up or timeout */
         if (*all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
             print_flag = 1;
-            printf("done\n");
         }
     }
 }
@@ -509,8 +500,8 @@ void egress_pipeline(int egress_port_id,
         uint64_t server_counter = server_counter_of_source_mac(pkt);
         uint8_t server_index = server_index_of_source_mac(pkt);
 
-        if(counters.at(server_index) >= server_counter || 
-           server_index >= opt_parser.egress_server_count()) {
+        if(server_index >= opt_parser.egress_server_count() ||
+           counters.at(server_index) >= server_counter ) {
             rte_pktmbuf_free(pkt);
             continue;
         }
@@ -659,7 +650,11 @@ int main(int argc, char **argv) {
     uint8_t all_ports_up = 0;
     check_all_ports_link_status(nb_ports, &all_ports_up);
     if(all_ports_up == 0) {
-        // rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
+        rte_exit(EXIT_FAILURE, "Some links are down, exit.\n");
+    }
+    else {
+        rte_delay_ms(1000);
+        printf("Done!\n");
     }
 
     std::vector<uint64_t> ingress_counters(opt_parser.ingress_server_count(), 0);

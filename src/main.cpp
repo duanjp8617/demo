@@ -509,7 +509,8 @@ void egress_pipeline(int egress_port_id,
         uint64_t server_counter = server_counter_of_source_mac(pkt);
         uint8_t server_index = server_index_of_source_mac(pkt);
 
-        if(counters.at(server_index) >= server_counter) {
+        if(counters.at(server_index) >= server_counter || 
+           server_index >= opt_parser.egress_server_count()) {
             rte_pktmbuf_free(pkt);
             continue;
         }

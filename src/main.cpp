@@ -39,7 +39,7 @@
 static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
-static volatile bool force_quit;
+static volatile bool force_quit = false;;
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 
@@ -49,7 +49,7 @@ static void
 check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
-#define MAX_CHECK_TIME 50 /* 9s (90 * 100ms) in total */
+#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
     uint16_t portid;
     uint8_t count, print_flag = 0;
     struct rte_eth_link link;
@@ -555,6 +555,8 @@ int main(int argc, char **argv) {
         rte_exit(EXIT_FAILURE, "Invalid demo arguments\n");
     }
 
+    std::cout<<"The process is running on socket "<<rte_socket_id()<<std::endl;
+
     l2fwd_pktmbuf_pool = rte_pktmbuf_pool_create("mbuf_pool", NB_MBUF,
         MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE,
         rte_socket_id());
@@ -674,7 +676,13 @@ int main(int argc, char **argv) {
                          ingress_recorder);
         
         for(int i=0; i<opt_parser.egress_side_port_id_count(); i++) {
-            egress_pipeline(opt_parser.egress_side_port_id(i), opt_parser, egress_counters);
+            int egress_port_id = opt_parser.egress_side_port_id(i);
+            if(port_mask & (1 << egress_port_id)) {
+                egress_pipeline(egress_port_id, opt_parser, egress_counters);
+            }
+            else {
+                continue;
+            }
         }
     }
 }

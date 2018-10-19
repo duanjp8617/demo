@@ -36,6 +36,10 @@
 #define RTE_TEST_TX_DESC_DEFAULT 512
 #define MAX_PKT_BURST 32
 
+#define RED "\033[31m"
+#define RESET "\033[0m"
+#define GREEN "\033[32m"
+
 static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
 static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
 
@@ -49,7 +53,7 @@ static void
 check_all_ports_link_status(uint16_t port_num, uint8_t* all_ports_up)
 {
 #define CHECK_INTERVAL 100 /* 100ms */
-#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+#define MAX_CHECK_TIME 200 /* 9s (90 * 100ms) in total */
     uint16_t portid;
     uint8_t count, print_flag = 0;
     struct rte_eth_link link;
@@ -125,7 +129,15 @@ lsi_event_callback(uint16_t port_id, enum rte_eth_event_type type, void *param,
         port_mask = port_mask | (1 << port_id);
     } else {
         port_mask = port_mask & (~(1 << port_id));
-        printf("Port %d Link Down\n\n", port_id);
+
+        if(!(port_mask & (1 << 1)) && 
+           !(port_mask & (1 << 2)) && 
+           !(port_mask & (1 << 3)) ) {
+            printf( RED "FATAL:" RESET " All links are down! The connection is lost.\n");
+        }
+        else {
+            printf("Port %d Link Down. Repairing... " GREEN "Repaired.\n\n" RESET, port_id);
+        }
     }
 
     return 0;
@@ -612,14 +624,6 @@ int main(int argc, char **argv) {
                  "Cannot adjust number of descriptors: err=%d, port=%u\n",
                  ret, portid);
 
-        /* register lsi interrupt callback, need to be after
-         * rte_eth_dev_configure(). if (intr_conf.lsc == 0), no
-         * lsc interrupt will be present, and below callback to
-         * be registered will never be called.
-         */
-        rte_eth_dev_callback_register(portid,
-            RTE_ETH_EVENT_INTR_LSC, lsi_event_callback, NULL);
-
         /* init one RX queue */
         fflush(stdout);
         ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
@@ -657,6 +661,18 @@ int main(int argc, char **argv) {
     else {
         rte_delay_ms(1000);
         printf("Done!\n");
+    }
+
+    for(auto id : port_id_holder) {
+        uint16_t portid = id;
+
+         /* register lsi interrupt callback, need to be after
+         * rte_eth_dev_configure(). if (intr_conf.lsc == 0), no
+         * lsc interrupt will be present, and below callback to
+         * be registered will never be called.
+         */
+        rte_eth_dev_callback_register(portid,
+            RTE_ETH_EVENT_INTR_LSC, lsi_event_callback, NULL);
     }
 
     std::vector<uint64_t> ingress_counters(opt_parser.ingress_server_count(), 0);

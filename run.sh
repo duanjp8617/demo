@@ -1,0 +1,1 @@
+sudo /home/djp/demo/build/main -l 0-1 -n 4 -- --ingress-side-port-id 0 --ingress-side-server-mac 40:8D:5C:49:B1:54 --egress-side-port-id 1,2,3 --egress-side-server-mac 00:33:78:00:00:01,00:30:1B:BA:02:DB,0C:C6:55:AE:76:BB

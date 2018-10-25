@@ -9,6 +9,10 @@
 
 #define WND_SIZE 2048
 
+// KCP_MODE = 0 fast
+// KCP_MODE > 0 ordinary
+#define KCP_MODE 0
+
 // G: 1073741824
 // M: 1048576
 // K: 1024

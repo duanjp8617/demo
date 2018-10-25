@@ -80,7 +80,15 @@ int main(int argc, char **argv) {
     ikcpcb* server_kcp = ikcp_create(0x11223344, reinterpret_cast<void*>(ls));
     server_kcp->output = udp_output;
     ikcp_wndsize(server_kcp, WND_SIZE, WND_SIZE);
-    ikcp_nodelay(server_kcp, 1, 10, 2, 1);
+    
+    if(KCP_MODE) {
+        // KCP ordinary
+        ikcp_nodelay(server_kcp, 0, 40, 0, 0);
+    }
+    else {
+        // KCP fast.
+        ikcp_nodelay(server_kcp, 1, 10, 2, 1);
+    }
 
     // Define local variables.
     IUINT32 current_time = iclock();

@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     long ls = s; 
     ikcpcb* client_kcp = ikcp_create(0x11223344, reinterpret_cast<void*>(ls));
     client_kcp->output = udp_output;
-    ikcp_wndsize(client_kcp, WND_SIZE/2, WND_SIZE);
+    ikcp_wndsize(client_kcp, WND_SIZE, WND_SIZE*2);
     
     if(KCP_MODE) {
         // KCP ordinary
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 
     while (1) {
         // Sleep for 1ms.
-        isleep(1);
+        // isleep(1);
         current_time = iclock();
 
         // Update the kcp control block, send pending packets out.
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
         }
 
         if(current_bytes < max_size) {
-            while(ikcp_waitsnd(client_kcp) < 2*WND_SIZE) {
+            while(ikcp_waitsnd(client_kcp) < WND_SIZE) {
                 int hr = ikcp_send(client_kcp, buf, MSG_SIZE);
                 if(hr < 0) {
                     err_code = -1; 

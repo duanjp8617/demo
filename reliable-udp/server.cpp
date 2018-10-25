@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
     long ls = s; 
     ikcpcb* server_kcp = ikcp_create(0x11223344, reinterpret_cast<void*>(ls));
     server_kcp->output = udp_output;
-    ikcp_wndsize(server_kcp, WND_SIZE/2, WND_SIZE);
+    ikcp_wndsize(server_kcp, WND_SIZE, WND_SIZE*2);
     
     if(KCP_MODE) {
         // KCP ordinary
@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 
     while (1) {
         // Sleep for 1ms.
-        isleep(1);
+        // isleep(1);
         current_time = iclock();
 
         // Update the kcp control block, send pending packets out.

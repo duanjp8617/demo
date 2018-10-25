@@ -96,10 +96,13 @@ int main(int argc, char **argv) {
     while (1) {
         // Sleep for 1ms.
         // isleep(1);
+        // usleep(50);
         current_time = iclock();
 
-        // Update the kcp control block, send pending packets out.
-        ikcp_update(client_kcp, current_time);
+        if(ikcp_check(client_kcp, current_time) == current_time) {
+            // Update the kcp control block, send pending packets out.
+            ikcp_update(client_kcp, current_time);
+        }
 
         // Keep calling recvfrom until the socket says EAGAIN.
         recv_len = 0;

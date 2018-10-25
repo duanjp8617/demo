@@ -21,11 +21,7 @@ int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
     // user is the socket id.
     int s = reinterpret_cast<long>(user);
     
-    int res = sendto(s, buf, len, 0, (struct sockaddr*) &si_server, slen);
-    if(res != len) {
-        printf("Error sending data out.\n");
-        exit(-1);
-    }
+    sendto(s, buf, len, 0, (struct sockaddr*) &si_server, slen);
 
     return 0;
 }
@@ -79,7 +75,7 @@ int main(int argc, char **argv) {
     long ls = s; 
     ikcpcb* client_kcp = ikcp_create(0x11223344, reinterpret_cast<void*>(ls));
     client_kcp->output = udp_output;
-    ikcp_wndsize(client_kcp, WND_SIZE, WND_SIZE);
+    ikcp_wndsize(client_kcp, WND_SIZE/2, WND_SIZE);
     
     if(KCP_MODE) {
         // KCP ordinary
@@ -105,44 +101,54 @@ int main(int argc, char **argv) {
         // Update the kcp control block, send pending packets out.
         ikcp_update(client_kcp, current_time);
 
+        // Keep calling recvfrom until the socket says EAGAIN.
+        recv_len = 0;
+        while(recv_len >= 0) {
+            // Receive packet from the UDP socket.
+            recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_received, &slen);
+            if(recv_len == -1 && errno != EAGAIN) {
+                err_code = -1;
+            }
+
+            // Receive new packet.
+            if(recv_len >= 0) {
+                // Check whether the packet comes from the server.
+                if(si_received.sin_addr.s_addr != si_server.sin_addr.s_addr && 
+                   si_received.sin_family != si_server.sin_family &&
+                   si_received.sin_port != si_server.sin_port) {
+                    printf("Received packet does not come from server.\n");
+                    continue;
+                }
+                // Send the packet to kcp control block for processing.
+                ikcp_input(client_kcp, buf, recv_len);
+
+                // Keep pulling the received message from the receive buffer.
+                int hr = 0;
+                while(hr >= 0) {
+                    // Try to get some application-level payload from kcp control block.
+                    hr = ikcp_recv(client_kcp, buf, BUFLEN);
+                    
+                    if(hr >= 0) {
+                        current_bytes += hr;
+                    }
+                }
+            }
+        }
+
         if(current_bytes < max_size) {
-            int qsize = ikcp_waitsnd(client_kcp);
-            while(qsize < 2*WND_SIZE) {
+            while(ikcp_waitsnd(client_kcp) < 2*WND_SIZE) {
                 int hr = ikcp_send(client_kcp, buf, MSG_SIZE);
                 if(hr < 0) {
                     err_code = -1; 
                     break;
                 }
                 current_bytes += MSG_SIZE;
-                qsize = ikcp_waitsnd(client_kcp);
             }
         }
         else {
             if(ikcp_waitsnd(client_kcp) == 0) {
                 break;
             }
-        }
-
-        // Receive packet from the UDP socket.
-        recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_received, &slen);
-        if(recv_len == -1) {
-            if(errno != EAGAIN) {
-                err_code = -1;
-                break;
-            }
-        }
-
-        // Receive new packet.
-        if(recv_len >= 0) {
-            // Check whether the packet comes from the server.
-            if(si_received.sin_addr.s_addr != si_server.sin_addr.s_addr && 
-               si_received.sin_family != si_server.sin_family &&
-               si_received.sin_port != si_server.sin_port) {
-                printf("Received packet does not come from server.\n");
-                continue;
-            }
-            // Send the packet to kcp control block for processing.
-            ikcp_input(client_kcp, buf, recv_len);
         }
 
         if(current_time - previous_time >= 1000) {
@@ -155,6 +161,10 @@ int main(int argc, char **argv) {
             total = total / 1024.0 / 1024.0;
             double left = (max_size - current_bytes)/1024.0/1024.0;
             printf("Client-side throughput: %.2fMB/s, %.2fMB left\n", total, left);
+        }
+
+        if(err_code == -1) {
+            break;
         }
     }
 

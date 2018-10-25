@@ -4,10 +4,10 @@
 #define CLIENT_PORT 9999
 #define CLIENT_ADDR "192.168.122.12"
 
-#define MSG_SIZE 2000
+#define MSG_SIZE 1300
 #define BUFLEN 4096  //Max length of buffer
 
-#define WND_SIZE 128
+#define WND_SIZE 8192
 
 // KCP_MODE = 0 fast
 // KCP_MODE > 0 ordinary
@@ -16,4 +16,4 @@
 // G: 1073741824
 // M: 1048576
 // K: 1024
-static constexpr long max_size = 1048576*10;
+static constexpr long max_size = 10737418240;

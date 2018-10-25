@@ -21,11 +21,7 @@ int udp_output(const char *buf, int len, ikcpcb *kcp, void *user) {
     // user is the socket id.
     int s = reinterpret_cast<long>(user);
     
-    int res = sendto(s, buf, len, 0, (struct sockaddr*) &si_client, slen);
-    if(res != len) {
-        printf("Error sending data out.\n");
-        exit(-1);
-    }
+    sendto(s, buf, len, 0, (struct sockaddr*) &si_client, slen);
 
     return 0;
 }
@@ -79,7 +75,7 @@ int main(int argc, char **argv) {
     long ls = s; 
     ikcpcb* server_kcp = ikcp_create(0x11223344, reinterpret_cast<void*>(ls));
     server_kcp->output = udp_output;
-    ikcp_wndsize(server_kcp, WND_SIZE, WND_SIZE);
+    ikcp_wndsize(server_kcp, WND_SIZE/2, WND_SIZE);
     
     if(KCP_MODE) {
         // KCP ordinary
@@ -93,9 +89,9 @@ int main(int argc, char **argv) {
     // Define local variables.
     IUINT32 current_time = iclock();
     IUINT32 previous_time = current_time;
-    int hr;
     long current_bytes = 0;
     long previous_bytes = 0;
+    int err_code = 0;
 
     while (1) {
         // Sleep for 1ms.
@@ -105,33 +101,39 @@ int main(int argc, char **argv) {
         // Update the kcp control block, send pending packets out.
         ikcp_update(server_kcp, current_time);
 
-        // Receive packet from the UDP socket.
-        recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_received, &slen);
-        if(recv_len == -1) {
-            if(errno != EAGAIN) {
-                break;
+        // Keep calling recvfrom until the socket says EAGAIN.
+        recv_len = 0;
+        while(recv_len >= 0) {
+            // Receive packet from the UDP socket.
+            recv_len = recvfrom(s, buf, BUFLEN, 0, (struct sockaddr *) &si_received, &slen);
+            if(recv_len == -1 && errno != EAGAIN) {
+                err_code = -1;
             }
-        }
-        
-        // Receive new packet.
-        if(recv_len > 0) {
-            // Check whether the packet comes from the client.
-            if(si_received.sin_addr.s_addr != si_client.sin_addr.s_addr && 
-               si_received.sin_family != si_client.sin_family &&
-               si_received.sin_port != si_client.sin_port) {
-                printf("Received packet does not come from client.\n");
-                continue;
-            }
-            // Send the packet to kcp control block for processing.
-            ikcp_input(server_kcp, buf, recv_len);
-        }
 
-        // Try to get some application-level payload from kcp control block.
-        hr = ikcp_recv(server_kcp, buf, BUFLEN);
-        
-        if(hr >= 0) {
-            current_bytes += hr;
-        }
+            // Receive new packet.
+            if(recv_len >= 0) {
+                // Check whether the packet comes from the server.
+                if(si_received.sin_addr.s_addr != si_server.sin_addr.s_addr && 
+                   si_received.sin_family != si_server.sin_family &&
+                   si_received.sin_port != si_server.sin_port) {
+                    printf("Received packet does not come from server.\n");
+                    continue;
+                }
+                // Send the packet to kcp control block for processing.
+                ikcp_input(server_kcp, buf, recv_len);
+
+                // Keep pulling the received message from the receive buffer.
+                int hr = 0;
+                while(hr >= 0) {
+                    // Try to get some application-level payload from kcp control block.
+                    hr = ikcp_recv(server_kcp, buf, BUFLEN);
+                    
+                    if(hr >= 0) {
+                        current_bytes += hr;
+                    }
+                }
+            }
+        }   
 
         if(current_time - previous_time >= 1000) {
             // 1 second has passed, print statistics.
@@ -144,9 +146,16 @@ int main(int argc, char **argv) {
 
             printf("Server-side throughput: %.2fMB/s\n", total);
         }
+
+        if(err_code == -1) {
+            break;
+        }
     }
 
-    // If we come here, there must be a recvfrom error.
-    printf("UDP socket error.\n");
-    exit(-1);
+    if(err_code == 0) {
+        std::cout<<"Done!"<<std::endl;
+    }
+    else {
+        std::cout<<"Transmission Error!"<<std::endl;
+    }
 }

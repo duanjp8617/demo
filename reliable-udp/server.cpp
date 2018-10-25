@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 
     while (1) {
         // Sleep for 1ms.
-        // isleep(1);
+        isleep(1);
         current_time = iclock();
 
         // Update the kcp control block, send pending packets out.
